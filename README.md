@@ -35,7 +35,7 @@ Files for the IBM AI Enterprise Workflow Capstone project.
 The notebook capstone-case-study.ipynb contains all the findings
 
 ### Case study part 2
-The code provided in solution-guidance has been modified to take model as parameter and also work for specific set of countries. The notebook capstone-case-study.ipynb contains details for iterating on different models. Running with different preprocessors (StandardScaler, OneHotEncoder) and models (RandomForestRegressor and ExtraTreesRegressor) the revenue prediction has gone down for some countries while has increased for others.
+The code provided in solution-guidance has been modified to take model as parameter and also work for specific set of countries. The notebook capstone-case-study.ipynb contains details for iterating on different models. Running with different preprocessors (StandardScaler, RobustScaler) and models (RandomForestRegressor and ExtraTreesRegressor) the revenue prediction has gone down for some countries while has increased for others.
 
 ### Case study part 3
 The code for providing HTTP API using flask, logic to predict for all countries, added unit tests for API, added docker file for creating the container out of this which will provide the API for the model to predict the revenue.
