@@ -15,18 +15,22 @@ python3 run-tests.py
 ```
 ### Model Tests
 All tests - `python3 -m unittest unittests/ModelTests.py`
+
 Specific test - `python3 -m unittest unittests.ModelTest.test_02_load`
 
 ### Logger Tests
 All tests - `python3 -m unittest unittests/LoggerTests.py`
+
 Specific test - `python3 -m unittest unittests.ModelTest.test_02_predict`
 
 # IBM AI Enterprise Workflow Capstone
 Files for the IBM AI Enterprise Workflow Capstone project. 
 
-### Case study part 1 - The notebook capstone-case-study.ipynb contains all the findings
+### Case study part 1
+The notebook capstone-case-study.ipynb contains all the findings
 
-### Case study part 2 - The code provided in solution-guidance has been modified to take model as parameter and also work for specific set of countries. The notebook capstone-case-study.ipynb contains details for iterating on different models. Running with different preprocessors (StandardScaler, OneHotEncoder) and models (RandomForestRegressor and ExtraTreesRegressor) the revenue prediction has gone down for some countries while has increased for others.
+### Case study part 2
+The code provided in solution-guidance has been modified to take model as parameter and also work for specific set of countries. The notebook capstone-case-study.ipynb contains details for iterating on different models. Running with different preprocessors (StandardScaler, OneHotEncoder) and models (RandomForestRegressor and ExtraTreesRegressor) the revenue prediction has gone down for some countries while has increased for others.
 
 ### Case study part 3
 
