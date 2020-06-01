@@ -47,7 +47,7 @@ The code for providing HTTP API using flask, logic to predict for all countries,
       /train          | mode           | Training mode - test or prod
      -----------------+----------------+---------------------------------------
                       | query          | query for model, need to have
-					  |                | 'country','year','month','day'
+		      |                | 'country','year','month','day'
       /predict        | query_type     | query_type - only dict is supported
                       | mode           | model to be used - test or prod
      -----------------+----------------+---------------------------------------
