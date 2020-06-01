@@ -1,4 +1,4 @@
-AAimport time,os,re,csv,sys,uuid,joblib
+import time,os,re,csv,sys,uuid,joblib
 import getopt
 from datetime import date
 from collections import defaultdict
@@ -185,7 +185,7 @@ def model_predict(country,year,month,day,all_models=None,test=False, prefix='sl'
 
     ## make prediction and gather data for log entry
     y_pred = model.predict(query)
-    y_proba = None
+    y_proba = []
     if 'predict_proba' in dir(model) and 'probability' in dir(model):
         if model.probability == True:
             y_proba = model.predict_proba(query)
