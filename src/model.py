@@ -1,5 +1,5 @@
-AAimport time,os,re,csv,sys,uuid,joblib
-import getopt
+import time,os,re,csv,sys,uuid,joblib
+import getopt,pickle
 from datetime import date
 from collections import defaultdict
 import numpy as np
@@ -8,9 +8,9 @@ from sklearn import svm
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.pipeline import Pipeline
-
+from sklearn.compose import ColumnTransformer
 from logger import update_predict_log, update_train_log
 from cslib import fetch_ts, engineer_features
 
@@ -24,7 +24,9 @@ DEFAULT_PARAM_GRID = {
     'rf__criterion': ['mse','mae'],
     'rf__n_estimators': [10,15,20,25]
 }
-def _model_train(prefix,df,tag,test=False, model=DEFAULT_MODEL, model_param_grid=DEFAULT_PARAM_GRID):
+DEFAULT_SCALER=StandardScaler()
+def _model_train(prefix,df,tag,test=False, model=DEFAULT_MODEL,
+                 model_param_grid=DEFAULT_PARAM_GRID, scaler=DEFAULT_SCALER):
     """
     example funtion to train model
     
@@ -52,7 +54,7 @@ def _model_train(prefix,df,tag,test=False, model=DEFAULT_MODEL, model_param_grid
                                                         shuffle=True, random_state=42)
 
 
-    pipe_rf = Pipeline(steps=[('scaler', StandardScaler()),
+    pipe_rf = Pipeline(steps=[('scaler', scaler),
                               ('rf', model)])
     
     grid = GridSearchCV(pipe_rf, param_grid=model_param_grid, cv=5, n_jobs=-1)
@@ -72,6 +74,10 @@ def _model_train(prefix,df,tag,test=False, model=DEFAULT_MODEL, model_param_grid
         saved_model = os.path.join(MODEL_DIR,
                                    "{}-{}-{}.joblib".format(prefix,tag,model_name))
         print("... saving model: {}".format(saved_model))
+        data_file = os.path.join(MODEL_DIR,'{}-{}-{}-train.pickle'.format(prefix,tag,model_name))
+        with open(data_file,'wb') as tmp:
+            pickle.dump({'y':y,'X':X},tmp)
+        print("... saving latest data")
         
     joblib.dump(grid,saved_model)
 
@@ -85,7 +91,7 @@ def _model_train(prefix,df,tag,test=False, model=DEFAULT_MODEL, model_param_grid
   
 
 def model_train(prefix='sl', data_dir=DATA_DIR, test=False, countries=False,
-                model=DEFAULT_MODEL, model_param_grid=DEFAULT_PARAM_GRID):
+                model=DEFAULT_MODEL, model_param_grid=DEFAULT_PARAM_GRID, scaler=DEFAULT_SCALER):
     """
     funtion to train model given a df    
     'mode' -  can be used to subset data essentially simulating a train
@@ -110,7 +116,7 @@ def model_train(prefix='sl', data_dir=DATA_DIR, test=False, countries=False,
         # only train model for country in countries
         if countries and not (country in countries):
             continue
-        _model_train(prefix, df,country,test=test, model=model, model_param_grid=model_param_grid)
+        _model_train(prefix, df,country,test=test, model=model, model_param_grid=model_param_grid, scaler=scaler)
     
 def model_load(prefix='sl',data_dir=DATA_DIR,training=True,countries=False):
     """
@@ -144,6 +150,9 @@ def model_load(prefix='sl',data_dir=DATA_DIR,training=True,countries=False):
         
     return(all_data, all_models)
 
+def nearest(items, pivot):
+    return min(items, key=lambda x: abs(date.fromisoformat(x) - pivot))
+
 def model_predict(country,year,month,day,all_models=None,test=False, prefix='sl'):
     """
     example funtion to predict from model
@@ -173,9 +182,12 @@ def model_predict(country,year,month,day,all_models=None,test=False, prefix='sl'
     print(target_date)
 
     if target_date not in data['dates']:
-        raise Exception("ERROR (model_predict) - date {} not in range {}-{}".format(target_date,
-                                                                                    data['dates'][0],
-                                                                                    data['dates'][-1]))
+        print("ERROR (model_predict) - date {} not in range {}-{}".format(target_date,
+                                                                          data['dates'][0],
+                                                                          data['dates'][-1]))
+        target_date = nearest(data['dates'], date.fromisoformat(target_date))
+        print("Nearest target date is {}".format(target_date))
+    
     date_indx = np.where(data['dates'] == target_date)[0][0]
     query = data['X'].iloc[[date_indx]]
     
@@ -185,7 +197,7 @@ def model_predict(country,year,month,day,all_models=None,test=False, prefix='sl'
 
     ## make prediction and gather data for log entry
     y_pred = model.predict(query)
-    y_proba = None
+    y_proba = []
     if 'predict_proba' in dir(model) and 'probability' in dir(model):
         if model.probability == True:
             y_proba = model.predict_proba(query)
@@ -201,14 +213,27 @@ def model_predict(country,year,month,day,all_models=None,test=False, prefix='sl'
     
     return({'y_pred':y_pred,'y_proba':y_proba})
 
+def get_preprocessor(scaler=DEFAULT_SCALER):
+    """
+    return the preprocessing pipeline
+    """
+    ## preprocessing pipeline
+    numeric_features = ['previous_7', 'previous_14', 'previous_28', 'previous_70', 'previous_year',
+                        'recent_invoices', 'recent_views']
+    numeric_transformer = Pipeline(steps=[('scaler', scaler)])
+
+    preprocessor = ColumnTransformer(transformers=[('num', numeric_transformer, numeric_features)])
+    return (preprocessor)
+
 def parse_argv(argv):
     try:
-        opts, args = getopt.getopt(argv,"ht:m:c:",["training=","model=","countries="])
+        opts, args = getopt.getopt(argv,"ht:m:c:s:",["training=","model=","countries=","scaler="])
     except getopt.GetoptError:
         print('model.py -t <training> -m <model> -c <countries>')
         sys.exit(2)
     train = ""
     model = RandomForestRegressor()
+    scaler = StandardScaler()
     countries = ['all', 'portugal', 'united_kingdom', 'hong_kong', 'eire',
                  'spain', 'france', 'singapore', 'norway', 'germany', 'netherlands']
     for opt, arg in opts:
@@ -221,25 +246,27 @@ def parse_argv(argv):
             model = arg == 'rf' and RandomForestRegressor() or ExtraTreesRegressor()
         elif opt in ("-c", "--countries"):
             countries = arg.split(',')
+        elif opt in ("-s", "--scaler"):
+            scaler = arg == 'ss' and StandardScaler() or RobustScaler()
         else:
             print('model.py -t <training> -m <model> -c <countries>')
             sys.exit(2)
-    print (train, model, countries)
-    return (train, model, countries)
+    print (train, model, countries, scaler)
+    return (train, model, countries, scaler)
             
 if __name__ == "__main__":
     """
     basic test procedure for model.py
     """
-    (train, model, countries) = parse_argv(sys.argv[1:])
+    (train, model, countries, scaler) = parse_argv(sys.argv[1:])
     if train == 'test':
         ## train the model - Test
         print("TRAINING MODELS - TEST")
-        model_train(data_dir=DATA_DIR, test=True, model=model, countries=countries)
+        model_train(data_dir=DATA_DIR, test=True, model=model, countries=countries, scaler=scaler)
     elif train == 'prod':
         ## train the model
         print("TRAINING MODELS")
-        model_train(data_dir=DATA_DIR, test=False, model=model, countries=countries)
+        model_train(data_dir=DATA_DIR, test=False, model=model, countries=countries, scaler=scaler)
     else:
         ## load the model
         print("LOADING MODELS")

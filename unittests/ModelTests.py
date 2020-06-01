@@ -4,6 +4,7 @@ model tests
 """
 import unittest
 import os,sys
+from datetime import date, datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', "src"))
 ## import model specific functions and variables
 from model import *
@@ -36,7 +37,16 @@ class ModelTest(unittest.TestCase):
         self.assertTrue('predict' in dir(model))
         self.assertTrue('fit' in dir(model))
 
-    def test_03_predict(self):
+    def test_03_nearest(self):
+        """
+        test the nearest date
+        """
+        dates = ['2019-01-01', '2019-02-01', '2019-05-01','2018-12-01']
+        nearest_date = nearest(dates, date.fromisoformat('2019-02-02'))
+        print("nearest date is {}".format(nearest_date))
+        self.assertTrue(nearest_date is '2019-02-01') 
+        
+    def test_04_predict(self):
         """
         test the predict function input
         """
@@ -50,7 +60,6 @@ class ModelTest(unittest.TestCase):
 
         y_pred = result['y_pred']
         self.assertTrue(y_pred[0] is not None)
-
           
 ### Run the tests
 if __name__ == '__main__':
